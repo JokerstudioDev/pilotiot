@@ -19,5 +19,6 @@
     <Compile Include="$(MSBuildThisFileDirectory)iothubPage.xaml.cs">
       <DependentUpon>iothubPage.xaml</DependentUpon>
     </Compile>
+    <Compile Include="$(MSBuildThisFileDirectory)PushNotiModel.cs" />
   </ItemGroup>
 </Project>
