@@ -87,22 +87,26 @@ namespace iothub.iOS
 
         //public override void OnActivated(UIApplication application)
         //{
-        //    App.Instance.ReportAppState("Active");
+        //    App.Instance.ReportAppState("Active").GetAwaiter();
         //}
 
         //public override void OnResignActivation(UIApplication application)
         //{
-        //    App.Instance.ReportAppState("InActive");
         //}
 
-        //public override void DidEnterBackground(UIApplication application)
-        //{
-        //    App.Instance.ReportAppState("Background");
-        //}
+        public override void DidEnterBackground(UIApplication application)
+        {
+            nint taskID = UIApplication.SharedApplication.BeginBackgroundTask(() => { });
+            new System.Threading.Tasks.Task(async() => {
+                await App.Instance.ReportAppState("Sleep");
+                UIApplication.SharedApplication.EndBackgroundTask(taskID);
+            }).Start();
+        }
+
         //// not guaranteed that this will run
         //public override void WillTerminate(UIApplication application)
         //{
-        //    App.Instance.ReportAppState("Teminated");
+        //    //App.Instance.ReportAppState("Teminated");
         //}
     }
 }

@@ -3,6 +3,8 @@ using System.Diagnostics;
 using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
+using Microsoft.AppCenter.Analytics;
+using Microsoft.AppCenter.Crashes;
 using Microsoft.Azure.Devices.Client;
 using Microsoft.Azure.Devices.Shared;
 using Newtonsoft.Json;
@@ -16,9 +18,14 @@ namespace iothub
         private string DeviceConnectionString;
         private DeviceClient Client;
 
+
         public App()
         {
             if (Instance == null) Instance = this;
+
+            Microsoft.AppCenter.AppCenter.Start("ios=ea44e600-db4c-4e06-ad2d-ee74111122f9;",
+                   typeof(Analytics), typeof(Crashes));
+            
             MessagingCenter.Subscribe<App, string>(this, "loginsuccess", async (sender, username) => {
                 await connectIoTHub(username);
                 await connectDirectMethod();
@@ -35,7 +42,7 @@ namespace iothub
             MessagingCenter.Send<App, string>(this, "loginsuccess", username);
         }
 
-        private async Task connectIoTHub(string username)
+        public async Task connectIoTHub(string username)
         {
             try
             {
@@ -46,21 +53,22 @@ namespace iothub
                     var content = JsonConvert.DeserializeObject<dynamic>(resultContent);
                     DeviceConnectionString = $"HostName=pilot-iothub.azure-devices.net;DeviceId={content.deviceId};SharedAccessKey={content.sharedKey}";
                 }
-                Client = DeviceClient.CreateFromConnectionString(DeviceConnectionString, TransportType.Mqtt_WebSocket_Only);
 
-                await Client.GetTwinAsync();
+                Client = DeviceClient.CreateFromConnectionString(DeviceConnectionString, TransportType.Amqp_Tcp_Only);
 
-                TwinCollection reportedProperties, connectivity;
+                TwinCollection reportedProperties;
                 reportedProperties = new TwinCollection();
-                connectivity = new TwinCollection();
                 reportedProperties["username"] = username;
                 reportedProperties["lastLogin"] = DateTime.UtcNow;
                 await Client.UpdateReportedPropertiesAsync(reportedProperties);
-                ReportAppState("Active");
+                await ReportAppState("Active");
+                Device.BeginInvokeOnMainThread(() => {
+                    this.MainPage.DisplayAlert("login status", "login success", "OK");
+                });
             }
             catch (Exception ex)
             {
-                Debug.WriteLine(ex);
+                throw ex;
             }
         }
 
@@ -72,7 +80,7 @@ namespace iothub
             }
             catch (Exception ex)
             {
-                Debug.WriteLine(ex.Message);
+                throw ex;
             }
         }
 
@@ -90,16 +98,23 @@ namespace iothub
             });
         }
 
-        public async void ReportAppState(string appState)
+        public async Task ReportAppState(string appState)
         {
             try
             {
+                //using (var client = new HttpClient())
+                //{
+                //    var result = await client.GetAsync($"https://pilotnotihub.azurewebsites.net/api/Hub/{Username}/{appState}");
+                //    string resultContent = await result.Content.ReadAsStringAsync();
+                //    var content = JsonConvert.DeserializeObject<dynamic>(resultContent);
+                //}
                 if (Client != null)
                 {
                     var reportedProperties = new TwinCollection();
                     reportedProperties["app_state"] = appState;
                     await Client.UpdateReportedPropertiesAsync(reportedProperties);
                 }
+
             }
             catch (Exception ex)
             {
@@ -109,7 +124,6 @@ namespace iothub
 
         protected override void OnStart()
         {
-            ReportAppState("Active");
         }
 
         protected override void OnSleep()
@@ -117,9 +131,10 @@ namespace iothub
             ReportAppState("Sleep");
         }
 
-        protected override void OnResume()
+        protected override async void OnResume()
         {
-            ReportAppState("Active");
+            await Client.OpenAsync();
+            await ReportAppState("Active");
         }
     }
 }
