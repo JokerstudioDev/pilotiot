@@ -45,10 +45,10 @@ namespace iothub.iOS
 
         private void RegisterRemoteNotification()
         {
-            UIApplication.SharedApplication.RegisterForRemoteNotifications();
+                UIApplication.SharedApplication.RegisterForRemoteNotifications();
         }
 
-        public override void RegisteredForRemoteNotifications(UIApplication application, NSData deviceToken)
+        public override async void RegisteredForRemoteNotifications(UIApplication application, NSData deviceToken)
         {
             Hub = new SBNotificationHub("Endpoint=sb://pilotnoti.servicebus.windows.net/;SharedAccessKeyName=DefaultListenSharedAccessSignature;SharedAccessKey=GtR6FWMaXkLQKQVIxfk5JDn5kU6BL2nzp+PIXxMKwsk=", "pilotnoti");
 
@@ -64,8 +64,7 @@ namespace iothub.iOS
 
                 if (error != null)
                 {
-                    Console.WriteLine("Error calling Unregister: {0}", error.ToString());
-                    return;
+                    Console.WriteLine(error.ToString());
                 }
             });
         }
@@ -81,6 +80,7 @@ namespace iothub.iOS
             {
                 content = (message[new NSString("content")] as NSString).ToString();
                 var notificationContent = Newtonsoft.Json.JsonConvert.DeserializeObject<PushNotiModel>(content);
+                notificationContent.Title += " by pushnoti";
                 App.Instance.HandleNotificationMessage(notificationContent);
             }
         }

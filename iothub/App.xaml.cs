@@ -25,13 +25,14 @@ namespace iothub
 
             Microsoft.AppCenter.AppCenter.Start("ios=ea44e600-db4c-4e06-ad2d-ee74111122f9;",
                    typeof(Analytics), typeof(Crashes));
-            
-            MessagingCenter.Subscribe<App, string>(this, "loginsuccess", async (sender, username) => {
+
+            MessagingCenter.Subscribe<App, string>(this, "loginsuccess", async (sender, username) =>
+            {
                 await connectIoTHub(username);
                 await connectDirectMethod();
             });
 
-            login("kritsada@perfenterprise.com");
+            login("jokerstudio26@gmail.com");
 
             InitializeComponent();
             MainPage = new iothubPage();
@@ -48,7 +49,8 @@ namespace iothub
             {
                 using (var client = new HttpClient())
                 {
-                    var result = await client.GetAsync($"https://pilotnotihub.azurewebsites.net/api/Hub/{username}");
+                    var deviceInfoId = Plugin.DeviceInfo.CrossDeviceInfo.Current.Id;
+                    var result = await client.GetAsync($"https://pilotnotihub.azurewebsites.net/api/Hub/{username}/{deviceInfoId}");
                     string resultContent = await result.Content.ReadAsStringAsync();
                     var content = JsonConvert.DeserializeObject<dynamic>(resultContent);
                     DeviceConnectionString = $"HostName=pilot-iothub.azure-devices.net;DeviceId={content.deviceId};SharedAccessKey={content.sharedKey}";
@@ -56,13 +58,12 @@ namespace iothub
 
                 Client = DeviceClient.CreateFromConnectionString(DeviceConnectionString, TransportType.Amqp_Tcp_Only);
 
-                TwinCollection reportedProperties;
-                reportedProperties = new TwinCollection();
-                reportedProperties["username"] = username;
+                var reportedProperties = new TwinCollection();
                 reportedProperties["lastLogin"] = DateTime.UtcNow;
                 await Client.UpdateReportedPropertiesAsync(reportedProperties);
                 await ReportAppState("Active");
-                Device.BeginInvokeOnMainThread(() => {
+                Device.BeginInvokeOnMainThread(() =>
+                {
                     this.MainPage.DisplayAlert("login status", "login success", "OK");
                 });
             }
@@ -87,13 +88,15 @@ namespace iothub
         private Task<MethodResponse> HandleNotification(MethodRequest methodRequest, object userContext)
         {
             var notificationContent = Newtonsoft.Json.JsonConvert.DeserializeObject<PushNotiModel>(methodRequest.DataAsJson);
+            notificationContent.Title += " by IoTHub";
             HandleNotificationMessage(notificationContent);
             return Task.FromResult(new MethodResponse(Encoding.UTF8.GetBytes("{\"status\":\"success\"}"), 200));
         }
 
         public void HandleNotificationMessage(PushNotiModel pushnotiModel)
         {
-            Device.BeginInvokeOnMainThread(() => {
+            Device.BeginInvokeOnMainThread(() =>
+            {
                 this.MainPage.DisplayAlert(pushnotiModel.Title, pushnotiModel.Message, "OK");
             });
         }
@@ -102,19 +105,12 @@ namespace iothub
         {
             try
             {
-                //using (var client = new HttpClient())
-                //{
-                //    var result = await client.GetAsync($"https://pilotnotihub.azurewebsites.net/api/Hub/{Username}/{appState}");
-                //    string resultContent = await result.Content.ReadAsStringAsync();
-                //    var content = JsonConvert.DeserializeObject<dynamic>(resultContent);
-                //}
                 if (Client != null)
                 {
                     var reportedProperties = new TwinCollection();
                     reportedProperties["app_state"] = appState;
                     await Client.UpdateReportedPropertiesAsync(reportedProperties);
                 }
-
             }
             catch (Exception ex)
             {
@@ -126,7 +122,7 @@ namespace iothub
         {
         }
 
-        protected override void OnSleep()
+        protected override async void OnSleep()
         {
             ReportAppState("Sleep");
         }
